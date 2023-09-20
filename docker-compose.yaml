@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  mega:
+    image: localhost/megacmd:armhf
+    # docker
+    #platform: linux/arm/v7
+    # podman-compose
+    arch: arm
+    variant: v7
+    restart: always
+    volumes:
+      - megaCmd:/var/home/.megaCmd
+
+volumes:
+  megaCmd:
