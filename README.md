@@ -1,13 +1,13 @@
-# MEGA CMD OCI
+# MEGA CMD for OCI
 
 MEGA CMD containerized.\
-The main motivation of this project is the functional MEGA CMD running on 64-bit Rasperry Pi OS (arm64/v8).
+The main motivation of this project is the functional MEGA CMD running in a Podman container on 64-bit Rasperry Pi OS (arm64/v8).
 
 ## Build it
 
 - `build.sh` is using `podman`. Execute `sed -ie "s/podman/docker/g" build.sh` if you use Docker.
-- Consider checking <https://mega.nz/linux/repo/> before building for any new `megacli` or distribution version. Update it in `build.sh`.
-- Build it.
+- Consider checking <https://mega.nz/linux/repo/> for any new `megacli` or distribution version before you build. Update it in `build.sh`.
+- Build it like so ...
 
 ```bash
 ./build.sh armhf
