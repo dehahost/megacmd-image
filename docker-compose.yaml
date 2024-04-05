@@ -1,16 +1,14 @@
-version: "3.8"
+version: "3"
 
 services:
-  mega:
-    image: localhost/megacmd:armhf
-    # docker
-    #platform: linux/arm/v7
-    # podman-compose
-    arch: arm
-    variant: v7
+  megacmd:
+    image: localhost/megacmd:latest
     restart: always
     volumes:
-      - megaCmd:/var/home/.megaCmd
+      # persistent state folder
+      - megacmd:/home/mega/.megaCmd
+      # sync data
+      - /home/you/mega-drive:/home/mega/sync
 
 volumes:
-  megaCmd:
+  megacmd:
