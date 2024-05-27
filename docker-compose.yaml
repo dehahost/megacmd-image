@@ -3,7 +3,7 @@ version: "3"
 services:
   megacmd:
     image: localhost/megacmd:latest
-    restart: always
+    build: .
     volumes:
       # sync data
-      - /home/you/mega-drive:/home/mega/sync
+      - $HOME/Documents/MEGAsync:/home/mega/sync

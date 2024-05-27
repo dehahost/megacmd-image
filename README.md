@@ -34,4 +34,4 @@ podman-compose exec -T megacmd mega-cmd
 
 - Image is using community-maintained build of `megacmd` for Alpine Linux. For more information visit [Alpine's GitLab aports repo](https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/community/megacmd).
 - Supported platforms are `amd64` and `arm64`.
-- MEGA CMD server is running unpriviledged under _"mega"_ user (UID 1001, GID 1001).
+- By default, MEGA CMD server is running unpriviledged under _"mega"_ user (UID 9100, GID 9100).
