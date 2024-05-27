@@ -5,10 +5,5 @@ services:
     image: localhost/megacmd:latest
     restart: always
     volumes:
-      # persistent state folder
-      - megacmd:/home/mega/.megaCmd
       # sync data
       - /home/you/mega-drive:/home/mega/sync
-
-volumes:
-  megacmd:

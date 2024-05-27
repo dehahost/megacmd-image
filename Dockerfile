@@ -15,7 +15,10 @@ COPY entry.sh /usr/local/bin/
 
 # - Prepare home
 RUN    adduser -D -u 1001 mega \
+    && install -d -o mega -g mega -m 0775 /home/mega/.megaCmd \
     && if [ ! -r /etc/machine-id ]; then ln -s /tmp/machine-id /etc/machine-id ; fi
+
+VOLUME [ "/home/mega/.megaCmd" ]
 
 USER mega:mega
 WORKDIR /home/mega
