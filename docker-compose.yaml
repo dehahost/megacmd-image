@@ -2,8 +2,15 @@ version: "3"
 
 services:
   megacmd:
-    image: localhost/megacmd:latest
+    image: dehahost/megacmd:latest
     build: .
+    #user: 1001:1001
+    #restart: always
     volumes:
-      # sync data
+      # Sync directory(-ies)
+      # :: Default uid/gid is 9100, so chmod the local sync dir accordingly.
+      # :: Or uncomment the `user` key above and change value to the folder owner (stat -c %u:%g ...)
       - $HOME/Documents/MEGAsync:/home/mega/sync
+      # Working directory (with .megaCmd state dir)
+      # :: Uses own anonymous volume by default.
+      #- megacmd:/home/mega
