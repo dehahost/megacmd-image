@@ -1,10 +1,8 @@
 FROM docker.io/library/alpine:3
 
 LABEL name="megacmd"
-LABEL description="MEGA CMD image"
-LABEL version="2.0.0"
 LABEL author="dehahost"
-LABEL fqin="host.deha.megacmd"
+LABEL fqin="com.dehahost.megacmd"
 
 ARG UID=9100
 
@@ -24,6 +22,6 @@ VOLUME [ "/home/mega" ]
 
 USER mega:mega
 WORKDIR /home/mega
-ENV HOME /home/mega
+ENV HOME=/home/mega
 
-ENTRYPOINT /usr/local/bin/entry.sh
+ENTRYPOINT [ "/usr/local/bin/entry.sh" ]
