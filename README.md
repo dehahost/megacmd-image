@@ -7,6 +7,12 @@ The main motivation of this project is the functional MEGA CMD running in a cont
 ## Build it (optional)
 
 ```bash
+./build.sh
+```
+
+... or ...
+
+```bash
 docker build -t dehahost/megacmd:latest .
 ```
 
