@@ -1,4 +1,4 @@
-FROM docker.io/library/alpine:3
+FROM docker.io/library/alpine:latest
 
 LABEL name="megacmd"
 LABEL author="dehahost"
