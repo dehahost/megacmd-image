@@ -23,7 +23,7 @@ fi
 # - Build for each platform
 
 docker buildx build \
-    ${arg_push} ${arg_nocache} \
+    ${arg_push} ${arg_nocache} --progress=plain \
     --platform="$(echo "${IMG_ARCHS[@]}" | tr ' ' ',')" \
     -t "${IMG_NAME}:latest" \
     -t "${IMG_NAME}:${IMG_VERSION}" \
