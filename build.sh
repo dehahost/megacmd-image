@@ -10,20 +10,21 @@ IMG_ARCHS=(
 ###
 
 set -e
-unset arg_push arg_nocache arg_gitlab
+unset arg_nocache arg_push
+
+if [[ $1 == "--no-cache" ]]; then
+    arg_nocache=("--no-cache" "--pull"); shift
+fi
 
 if [[ $1 == "--push" ]]; then
     arg_push="--push"; shift
 fi
 
-if [[ $1 == "--no-cache" ]]; then
-    arg_nocache="--no-cache"; shift
-fi
-
 # - Build for each platform
 
 docker buildx build \
-    ${arg_push} ${arg_nocache} --progress=plain \
+    $arg_push "${arg_nocache[@]}" --progress=plain \
+    --provenance=true --sbom=true \
     --platform="$(echo "${IMG_ARCHS[@]}" | tr ' ' ',')" \
     -t "${IMG_NAME}:latest" \
     -t "${IMG_NAME}:${IMG_VERSION}" \
