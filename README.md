@@ -10,12 +10,6 @@ Supported architectures: `amd64`, `arm64`
 ./build.sh
 ```
 
-... or ...
-
-```bash
-docker build -t dehahost/megacmd:latest .
-```
-
 ## Run it
 
 You may wish to pull the image from [Docker Hub](https://hub.docker.com/r/dehahost/megacmd).\

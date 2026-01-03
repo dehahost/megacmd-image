@@ -1,8 +1,11 @@
 FROM docker.io/library/alpine:3
 
-LABEL name="megacmd"
-LABEL author="dehahost"
-LABEL fqin="com.dehahost.megacmd"
+LABEL org.opencontainers.image.title="megacmd"
+LABEL org.opencontainers.image.description="Application packaged by dehahost"
+LABEL org.opencontainers.image.vendor="dehahost"
+LABEL org.opencontainers.image.base.name="docker.io/library/alpine:3"
+LABEL org.opencontainers.image.source="https://github.com/dehahost/megacmd-image"
+LABEL org.opencontainers.image.url="https://hub.docker.com/r/dehahost/megacmd"
 
 ARG UID=9100
 
@@ -14,7 +17,7 @@ RUN    apk upgrade --no-cache \
 COPY entry.sh /usr/local/bin/
 
 # - Prepare home
-RUN    adduser -D -u ${UID} mega  \
+RUN    adduser -D -u $UID mega  \
     && install -d -o mega -g mega -m 0777 /home/mega \
     && if [ ! -r /etc/machine-id ]; then ln -s /tmp/machine-id /etc/machine-id ; fi
 
