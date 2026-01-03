@@ -1,9 +1,9 @@
-FROM docker.io/library/alpine:3
+FROM docker.io/library/alpine:3.23
 
 LABEL org.opencontainers.image.title="megacmd"
 LABEL org.opencontainers.image.description="Application packaged by dehahost"
 LABEL org.opencontainers.image.vendor="dehahost"
-LABEL org.opencontainers.image.base.name="docker.io/library/alpine:3"
+LABEL org.opencontainers.image.base.name="docker.io/library/alpine:3.23"
 LABEL org.opencontainers.image.source="https://github.com/dehahost/megacmd-image"
 LABEL org.opencontainers.image.url="https://hub.docker.com/r/dehahost/megacmd"
 
