@@ -1,6 +1,6 @@
 # MEGA CMD image
 
-Rootless image based upon the latest [Alpine Linux](https://hub.docker.com/_/alpine), and it provides a [MEGAcmd](https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/community/megacmd) server and its utilities.
+Rootless image based upon the latest [Alpine Linux](https://hub.docker.com/_/alpine) providing a [MEGAcmd](https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/community/megacmd) server and its utilities.
 
 Supported architectures: `amd64`, `arm64`
 
