@@ -1,10 +1,10 @@
 # MEGA CMD image
 
-MEGA CMD image for Docker or Podman.
+Rootless image based upon the latest [Alpine Linux](https://hub.docker.com/_/alpine), and it provides a [MEGAcmd](https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/community/megacmd) server and its utilities.
 
-The main motivation of this project is the functional MEGA CMD running in a container on 64-bit Rasperry Pi OS (arm64/v8).
+Supported architectures: `amd64`, `arm64`
 
-## Build it (optional)
+## Build it
 
 ```bash
 ./build.sh
@@ -16,48 +16,54 @@ The main motivation of this project is the functional MEGA CMD running in a cont
 docker build -t dehahost/megacmd:latest .
 ```
 
-## Run it - examples
+## Run it
 
-### ...on your computer
+You may wish to pull the image from [Docker Hub](https://hub.docker.com/r/dehahost/megacmd).\
+It's updated around the first Friday of each month due to base image patches.
 
-**1/** Create sync folder
+By default, image runs with UID/GID set to 9100.
+
+### Docker commands
+
+**1/** Choose your sync directory, for example ...
 
 ```bash
-mkdir $HOME/Documents/MEGAsync
+megadir="${HOME}/Documents/MEGAsync"
 ```
 
-**2/** Run MEGA CMD container in background
+**2/** Create it (if it doesn't exist)
 
 ```bash
-syncdir="${HOME}/Documents/MEGAsync"
+mkdir "$megadir"
+```
+
+**3/** Run megacmd image as a daemon
+
+```bash
 docker run -d \
     --name megacmd \
-    -u $(stat -c %u:%g ${syncdir}) \
-    -v ${syncdir}:/home/mega/sync \
+    -u "$(stat -c %u:%g $megadir)" \
+    -v "${megadir}:/home/mega/sync" \
     dehahost/megacmd:latest
 ```
 
 >[!NOTE]
->The `-u` parameter defines the same user/group for the container as for the folder.
+>The `⁣-u` parameter sets the container UID and GID to match the folder owner and group.
 
-**3/** Jump in, login and start syncing
+**4/** Manage it
 
 ```bash
 docker exec -it megacmd mega-cmd
 ```
 
-### ...on a server
+### Docker compose
 
-**1/** Create sync folder
-
-```bash
-mkdir /srv/megasync
-chown 9100:9100 /srv/megasync
-```
-
-**2/** Copy `docker-compose.yaml` from repo and change volume path
+**1/** Copy `docker-compose.yaml` from this repo\
+**2/** Change sync folder(s) to your liking, for example ...
 
 ```diff
+# docker-compose.yaml
+
  services:
    megacmd:
      volumes:
@@ -66,15 +72,41 @@ chown 9100:9100 /srv/megasync
 +      - /srv/megasync:/home/mega/sync
 ```
 
-**3/** Start it and configure it
+**3/** Create is (if it doesn't exist)
+
+```bash
+mkdir /srv/megasync
+```
+
+**4/A/** Change the owner and group to image's default UID and GID
+
+```bash
+chown 9100:9100 /srv/megasync
+```
+
+**4/B/** Use current UID and GID of the folder
+
+```shell-session
+~ # stat -c %u:%g /srv/megasync
+1010:1010
+```
+
+```diff
+# docker-compose.yaml
+
+ services:
+   megacmd:
+     image: "docker.io/dehahost/megacmd:latest"
+     restart: "unless-stopped"
+-    #user: "1001:1001"
++    user: "1010:1010"
+     volumes:
+       # ...
+```
+
+**5/** Start the service and configure it
 
 ```bash
 docker compose up -d
 docker compose exec megacmd mega-cmd
 ```
-
-## More info?
-
-- Image is using community-maintained build of `megacmd` for Alpine Linux. For more information visit [Alpine's GitLab aports repo](https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/community/megacmd).
-- Supported platforms are `amd64` and `arm64`.
-- By default, MEGA CMD server is running unpriviledged under _"mega"_ user (UID/GID=9100).

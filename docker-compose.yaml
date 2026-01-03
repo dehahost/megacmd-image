@@ -1,16 +1,16 @@
-version: "3"
-
 services:
   megacmd:
-    image: dehahost/megacmd:latest
-    build: .
-    #user: 1001:1001
-    #restart: always
+    image: "docker.io/dehahost/megacmd:latest"
+    #restart: "unless-stopped"
+    #user: "1001:1001"
     volumes:
-      # Sync directory(-ies)
-      # :: Default uid/gid is 9100, so chmod the local sync dir accordingly.
-      # :: Or uncomment the `user` key above and change value to the folder owner (stat -c %u:%g ...)
+      # :: Make the workdir persistent
+      - megahome:/home/mega
+
+      # :: Synchronization folder(s)
+      #    By default, UID/GID is 9100, so chmod your sync folder accordingly.
+      #    OR uncomment the `user` key above and change the value to the folder owner (stat -c %u:%g /path/to/folder)
       - $HOME/Documents/MEGAsync:/home/mega/sync
-      # Working directory (with .megaCmd state dir)
-      # :: Uses own anonymous volume by default.
-      #- megacmd:/home/mega
+
+volumes:
+  megahome:
