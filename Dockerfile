@@ -11,7 +11,7 @@ ARG UID=9100
 
 # - Install MEGA CMD
 RUN    apk upgrade --no-cache \
-    && apk add --no-cache megacmd
+    && apk add --no-cache bash megacmd
 
 # - Copy launch.sh
 COPY entry.sh /usr/local/bin/
