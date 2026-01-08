@@ -7,7 +7,7 @@ Supported architectures: `amd64`, `arm64`
 ## Build it
 
 ```bash
-./build.sh
+./build.sh --prod
 ```
 
 ## Run it

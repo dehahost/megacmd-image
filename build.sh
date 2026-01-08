@@ -24,20 +24,20 @@ set -e
 unset arg_nocache arg_push arg_tags arg_lables
 
 if [[ $1 == "--help" ]]; then
-    echo "$(basename "$0") [--devel] [--no-cache] [--push]"
+    echo "$(basename "$0") [--prod] [--no-cache] [--push]"
     exit
 fi
 
-if [[ $1 == "--devel" ]]; then
-    echo -e "\e[2m[ i ] Override: Use \"devel\" environment\e[0m"
+if [[ $1 == "--prod" ]]; then
+    echo -e "\e[2m[ i ] Override: Use \"prod\" environment\e[0m"
+    IMG_LABELS+=( "com.dehahost.oci.env=prod" )
+    shift
+else
     IMG_TAGS=(
         "${IMG_NAME}:devel-$(date +"%Y.%m")"
         "${IMG_NAME}:devel"
     )
     IMG_LABELS+=( "com.dehahost.oci.env=devel" )
-    shift
-else
-    IMG_LABELS+=( "com.dehahost.oci.env=prod" )
 fi
 
 if [[ $1 == "--no-cache" ]]; then
