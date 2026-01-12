@@ -4,6 +4,8 @@ UID_DEF=$(id -u mega)
 GID_DEF=$(id -u mega)
 GID=$(id -g)
 
+DATE_FMT="%+4Y-%m-%d %H:%M:%S"
+
 SERVER_LOG=".megaCmd/megacmdserver.log"
 SERVER_PID="/tmp/megacmdserver.pid"
 
@@ -20,7 +22,7 @@ function log_prefix() {
         mod=" | $2"
     fi
 
-    dt=$(date +"%F %T")
+    dt=$(date +"$DATE_FMT")
 
     case $1 in
         "e")    echo -n "[${dt}][ !${mod} ]" ;;
@@ -36,7 +38,7 @@ function log() {
         mod=$2; shift 2
     fi
 
-    if [[ $1 =~ ^-?([epi])$ ]]; then
+    if [[ $1 =~ ^-([epi])$ ]]; then
         state=${BASH_REMATCH[1]}; shift
     fi
 
@@ -66,32 +68,32 @@ function is_server_running() {
 
 function do_start_server() {
     if is_server_running; then
-        log -m "server" i "MEGAcmd server is running"
+        log -m "server" -i "MEGAcmd server is running"
         return
     fi
 
-    log -m "server" p "Starting MEGAcmd server"
+    log -m "server" -p "Starting MEGAcmd server"
 
-    echo -e "--- $(date +"%F %T") ---" >$SERVER_LOG
+    echo -e "--- $(date +"$DATE_FMT") ---" >$SERVER_LOG
     mega-cmd-server >>$SERVER_LOG &
     local pid=$!
     sleep 1s
 
     if [[ ! -r "/proc/${pid}/stat" ]]; then
-        log -m "server" e "Unable to start MEGAcmd server"
-        cat $SERVER_LOG
+        log -m "server" -e "Unable to start MEGAcmd server"
+        echo; cat $SERVER_LOG
         exit 1
     fi
 
     echo $pid >$SERVER_PID
-    log -m "server" i "MEGAcmd server is running"
+    log -m "server" -i "MEGAcmd server is running"
 }
 
 function do_precheck() {
     local owner_megacmd
 
     if [[ "${UID}:${GID}" != "${UID_DEF}:${GID_DEF}" ]]; then
-        log -m "precheck" i "Detected custom UID/GID - ${UID}:${GID}"
+        log -m "precheck" -i "Detected custom UID/GID - ${UID}:${GID}"
     fi
 
     if [[ ! -d .megaCmd ]]; then
@@ -100,27 +102,111 @@ function do_precheck() {
 
     owner_megacmd="$(stat -c %u:%g .megaCmd)"
     if [[ $owner_megacmd != "${UID}:${GID}" ]]; then
-        log -m "precheck" e "Wrong owner of ${HOME}/.megaCmd - got ${owner_megacmd}, expected ${UID}:${GID}"
+        log -m "precheck" -e "Wrong owner of ${HOME}/.megaCmd - expected ${UID}:${GID}, got ${owner_megacmd}"
         exit 1
     fi
 }
 
 function do_stop() {
-    echo
-    log p "Caught stop signal, so shutting down..."
+    local arg_silent arg_signal
+
+    if [[ $1 == "-s" ]]; then
+        arg_silent=y; shift
+    fi
+
+    if [[ $1 =~ ^[0-9]+$ ]]; then
+        arg_signal=$1; shift
+    fi
+
+    #
+
+    if [[ -z $arg_silent ]]; then
+        echo; log -p "Caught stop signal, shutting down..."
+    fi
 
     if is_server_running; then
         kill "$(get_server_pid)"
-        log i "MEGAcmd server is stopped"
+        [[ -z $arg_silent ]] && log -i "MEGAcmd server is stopped"
     fi
 
-    exit
+    if [[ -n $arg_silent && $MEGACMD_LOGLEVEL =~ ^(FULL)?(DEBUG|VERBOSE)$ ]]; then
+        log -p "Printing server log..."
+        echo; cat $SERVER_LOG
+    fi
+
+    exit ${arg_signal:+"$arg_signal"}
 }
 
 ### - Automations
 
 function do_autologin() {
-    echo TBD
+    if mega-whoami >/dev/null 2>&1; then
+        log -m autologin -i "User session exists, skipping..."
+        return
+    fi
+
+    local password args
+
+    args=("$MEGACMD_EMAIL")
+
+    if [[ -n $MEGACMD_PASSWORD ]]; then
+        password=$MEGACMD_PASSWORD
+    fi
+
+    if [[ -n $MEGACMD_PASSWORD_FILE ]]; then
+        local _secret_src=$MEGACMD_PASSWORD_FILE
+
+        if [[ -r "/run/secrets/${MEGACMD_PASSWORD_FILE}" ]]; then
+            log -m autologin -i "Loading password from secret - ${MEGACMD_PASSWORD_FILE}"
+            _secret_src="/run/secrets/${MEGACMD_PASSWORD_FILE}"
+        else
+            log -m autologin -i "Loading password from file - ${_secret_src}"
+        fi
+
+        if [[ ! -r $_secret_src ]]; then
+            log -m autologin -e "Password file \"${_secret_src}\" is not readable"
+            do_stop -s 1
+        fi
+
+        if [[ -n $password ]]; then
+            log -m autologin -i "Beware: MEGACMD_PASSWORD_FILE overrides MEGACMD_PASSWORD"
+        fi
+
+        password=$(<"$_secret_src")
+    fi
+
+    if [[ -z $password || $password =~ ^[[:space:]]*$ ]]; then
+        log -m autologin -e "Password is empty"
+        do_stop -s 1
+    fi
+
+    args+=("$password")
+
+    if [[ -n $MEGACMD_TOTP ]]; then
+        if [[ ! $MEGACMD_TOTP =~ ^[0-9]{6}$ ]]; then
+            log -m autologin -e "MEGASYNC_TOTP has invalid format - expected 6 digits, got \"${MEGACMD_TOTP}\""
+            do_stop -s 1
+        fi
+
+        args=("--auth-code=${MEGACMD_TOTP}" "${args[@]}")
+    fi
+
+    log -m autologin -p "Attempting to login as ${MEGACMD_EMAIL}..."
+
+    timeout -s 9 30s mega-login "${args[@]}" 2>&1
+
+    local _login_rc=$?
+    if [[ $_login_rc -ge 124 && $_login_rc -le 127 ]] || [[ $_login_rc -eq 137 ]]; then
+        # Usually mistyped email and password causes mega-login to hang
+        log -m autologin -e "Login timed out! Check that your login details are correct"
+        do_stop -s 1
+    elif [[ $_login_rc -ge 1 ]]; then
+        # Usually old TOTP fails the command
+        log -m autologin -e "Login failed! Isn't the TOTP token outdated?"
+        do_stop -s 1
+    fi
+
+    log -m autologin -i "Logged in"
 }
 
 function do_autosync() {
@@ -131,7 +217,7 @@ function do_autosync() {
 ###
 ### PROGRAM
 
-log p "Heating up..."
+log -p "Heating up..."
 
 # - Prepare runtime
 
@@ -146,19 +232,22 @@ do_start_server
 
 # - Run automation
 
-if [[ -n $MEGASYNC_EMAIL ]] && [[ -n $MEGASYNC_PASSWORD || -n $MEGASYNC_PASSWORD_FILE ]]; then
+if [[ -n $MEGACMD_EMAIL ]] && [[ -n $MEGACMD_PASSWORD || -n $MEGACMD_PASSWORD_FILE ]]; then
     do_autologin
 fi
 
-if [[ -n $MEGASYNC_DIR ]]; then
+if [[ -n $MEGACMD_DIR ]]; then
     do_autosync
 fi
 
 ###
 
-log i "Welcome to $(mega-version) (package $(apk info -d megacmd 2>/dev/null | head -n1 | cut -d' ' -f0))"
-log i "Enter the interactive shell by typing: docker exec -it $(hostname) mega-cmd"
+bin_version="$(mega-version)"
+pkg_version="$(apk info -d megacmd 2>/dev/null | head -n1 | cut -d' ' -f0)"
+
+log -i "Welcome to ${bin_version} (package ${pkg_version})"
+log -i "Enter the interactive shell by typing: docker exec -it ${HOSTNAME} mega-cmd"
 
 echo
 tail -n+1 -f $SERVER_LOG &
-wait "$(get_server_pid)"
+wait
