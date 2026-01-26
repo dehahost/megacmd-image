@@ -6,7 +6,8 @@ GID=$(id -g)
 
 DATE_FMT="%+4Y-%m-%d %H:%M:%S"
 
-SERVER_LOG=".megaCmd/megacmdserver.log"
+MEGA_STATE_DIR=".megaCmd"
+SERVER_LOG="${MEGA_STATE_DIR}/megacmdserver.log"
 SERVER_PID="/tmp/megacmdserver.pid"
 
 
@@ -45,7 +46,22 @@ function log() {
     echo "$(log_prefix "$state" "$mod") $*"
 }
 
-### - Runtime
+### - Utils: Autosync
+
+function get_owner() {
+    stat -c %u:%g "$1"
+}
+
+function is_dir_owner_right() {
+    local owner ; owner="$(get_owner "$1")"
+    [[ $owner == "${UID}:${GID}" ]]
+}
+
+function mega_has_session() {
+    mega-whoami >/dev/null 2>&1
+}
+
+### - Utils: Runtime
 
 function get_server_pid() {
     [[ ! -r $SERVER_PID ]] && return 1
@@ -65,6 +81,8 @@ function is_server_running() {
         return 1
     fi
 }
+
+### - Runtime
 
 function do_start_server() {
     if is_server_running; then
@@ -89,20 +107,19 @@ function do_start_server() {
     log -m "server" -i "MEGAcmd server is running"
 }
 
-function do_precheck() {
-    local owner_megacmd
+function do_start_precheck() {
+    local
 
     if [[ "${UID}:${GID}" != "${UID_DEF}:${GID_DEF}" ]]; then
         log -m "precheck" -i "Detected custom UID/GID - ${UID}:${GID}"
     fi
 
-    if [[ ! -d .megaCmd ]]; then
-        install -d -m 0700 .megaCmd || exit 1
+    if [[ ! -d "$MEGA_STATE_DIR" ]]; then
+        install -d -m 0700 "$MEGA_STATE_DIR" || exit 1
     fi
 
-    owner_megacmd="$(stat -c %u:%g .megaCmd)"
-    if [[ $owner_megacmd != "${UID}:${GID}" ]]; then
-        log -m "precheck" -e "Wrong owner of ${HOME}/.megaCmd - expected ${UID}:${GID}, got ${owner_megacmd}"
+    if ! is_dir_owner_right "$MEGA_STATE_DIR"; then
+        log -m autosync -e "Wrong owner of ${local_dir} - expected ${UID}:${GID}, got $(get_owner "$MEGA_STATE_DIR")"
         exit 1
     fi
 }
@@ -137,23 +154,7 @@ function do_stop() {
     exit ${arg_signal:+"$arg_signal"}
 }
 
-### - Utils: Autosync
-
-function get_owner() {
-    stat -c %u:%g "$1"
-}
-
-function is_dir_owner_right() {
-    local owner ; owner="$(get_owner "$1")"
-    [[ $owner == "${UID}:${GID}" ]]
-}
-
-function mega_has_session() {
-    mega-whoami >/dev/null 2>&1
-}
-
-
-### - Automations
+### - Automation
 
 function do_autologin() {
     if mega_has_session; then
@@ -234,12 +235,12 @@ function do_autosync() {
     ###
 
     local sync_list
-    IFS="," read -r -a sync_list <<< "$MEGACMD_SYNC_DIRS"
+    IFS="," read -r -a sync_list <<<"$MEGACMD_SYNC_DIRS"
 
     for sync_item in "${sync_list[@]}"; do
         local local_dir remote_dir
 
-        IFS=":" read -r local_dir remote_dir <<< "$(echo "$sync_item" | xargs)"
+        IFS=":" read -r local_dir remote_dir <<<"$(echo "$sync_item" | xargs)"
 
         if [[ -z $local_dir || -z $remote_dir ]]; then
             log -m autosync -e "Wrong sync definition - '${sync_item}'"
@@ -260,14 +261,14 @@ function do_autosync() {
 
         # - Check remote dir
 
-        if ! mega-ls "${remote_dir}" >/dev/null 2>&1; then
+        if ! mega-ls "$remote_dir" >/dev/null 2>&1; then
             log -m autosync -e "Remote folder does not exist - ${remote_dir}"
             do_stop -s 1
         fi
 
         # - Check sync status
 
-        if mega-sync "${local_dir}" >/dev/null; then
+        if mega-sync "$local_dir" >/dev/null; then
             local sync_status
             sync_status=$(mega-sync --output-cols=LOCALPATH,REMOTEPATH,RUN_STATE,STATUS,ERROR --col-separator=¨ "$local_dir" | awk -F ¨ 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1')
 
@@ -279,7 +280,7 @@ function do_autosync() {
 
         log -m autosync -p "Setting up sync - ${local_dir}:${remote_dir}..."
 
-        if ! mega-sync "${local_dir}" "${remote_dir}"; then
+        if ! mega-sync "$local_dir" "$remote_dir"; then
             do_stop -s 1
         fi
     done
@@ -299,7 +300,7 @@ fi
 
 trap do_stop SIGTERM SIGINT
 
-do_precheck
+do_start_precheck
 do_start_server
 
 # - Run automation
