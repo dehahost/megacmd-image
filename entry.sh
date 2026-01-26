@@ -137,10 +137,26 @@ function do_stop() {
     exit ${arg_signal:+"$arg_signal"}
 }
 
+### - Utils: Autosync
+
+function get_owner() {
+    stat -c %u:%g "$1"
+}
+
+function is_dir_owner_right() {
+    local owner ; owner="$(get_owner "$1")"
+    [[ $owner == "${UID}:${GID}" ]]
+}
+
+function mega_has_session() {
+    mega-whoami >/dev/null 2>&1
+}
+
+
 ### - Automations
 
 function do_autologin() {
-    if mega-whoami >/dev/null 2>&1; then
+    if mega_has_session; then
         log -m autologin -i "User session exists, skipping..."
         return
     fi
@@ -210,7 +226,63 @@ function do_autologin() {
 }
 
 function do_autosync() {
-    echo TBD
+    if ! mega_has_session; then
+        log -m autosync -e "User session does not exists! Please login first to use this feature."
+        return
+    fi
+
+    ###
+
+    local sync_list
+    IFS="," read -r -a sync_list <<< "$MEGACMD_SYNC_DIRS"
+
+    for sync_item in "${sync_list[@]}"; do
+        local local_dir remote_dir
+
+        IFS=":" read -r local_dir remote_dir <<< "$(echo "$sync_item" | xargs)"
+
+        if [[ -z $local_dir || -z $remote_dir ]]; then
+            log -m autosync -e "Wrong sync definition - '${sync_item}'"
+            do_stop -s 1
+        fi
+
+        # - Check local dir
+
+        if [[ ! -d "$local_dir" ]]; then
+            log -m autosync -e "Local folder does not exist - ${local_dir}"
+            do_stop -s 1
+        fi
+
+        if ! is_dir_owner_right "$local_dir"; then
+            log -m autosync -e "Wrong owner of ${local_dir} - expected ${UID}:${GID}, got $(get_owner "$local_dir")"
+            do_stop -s 1
+        fi
+
+        # - Check remote dir
+
+        if ! mega-ls "${remote_dir}" >/dev/null 2>&1; then
+            log -m autosync -e "Remote folder does not exist - ${remote_dir}"
+            do_stop -s 1
+        fi
+
+        # - Check sync status
+
+        if mega-sync "${local_dir}" >/dev/null; then
+            local sync_status
+            sync_status=$(mega-sync --output-cols=LOCALPATH,REMOTEPATH,RUN_STATE,STATUS,ERROR --col-separator=¨ "$local_dir" | awk -F ¨ 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1')
+
+            log -m autosync -i "Sync of ${local_dir} is already configured - ${sync_status}"
+            continue
+        fi
+
+        # - Set up sync
+
+        log -m autosync -p "Setting up sync - ${local_dir}:${remote_dir}..."
+
+        if ! mega-sync "${local_dir}" "${remote_dir}"; then
+            do_stop -s 1
+        fi
+    done
 }
 
 
@@ -236,7 +308,7 @@ if [[ -n $MEGACMD_EMAIL ]] && [[ -n $MEGACMD_PASSWORD || -n $MEGACMD_PASSWORD_FI
     do_autologin
 fi
 
-if [[ -n $MEGACMD_DIR ]]; then
+if [[ -n $MEGACMD_SYNC_DIRS ]]; then
     do_autosync
 fi
 
