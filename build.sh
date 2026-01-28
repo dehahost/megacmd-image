@@ -9,7 +9,6 @@ IMG_ARCHS=(
 IMG_TAGS=(
     "${IMG_NAME}:${IMG_VERSION}-$(date +"%Y.%m")"
     "${IMG_NAME}:${IMG_VERSION}"
-    "${IMG_NAME}:latest"
 )
 IMG_LABLES=(
     "org.opencontainers.image.created=$(date +"%Y-%m-%dT%H:%M:%SZ")"
@@ -30,6 +29,7 @@ fi
 
 if [[ $1 == "--prod" ]]; then
     echo -e "\e[2m[ i ] Override: Use \"prod\" environment\e[0m"
+    IMG_TAGS+=( "${IMG_NAME}:latest" )
     IMG_LABELS+=( "com.dehahost.oci.env=prod" )
     shift
 else
