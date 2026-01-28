@@ -9,51 +9,56 @@ IMG_ARCHS=(
 IMG_TAGS=(
     "${IMG_NAME}:${IMG_VERSION}-$(date +"%Y.%m")"
     "${IMG_NAME}:${IMG_VERSION}"
-    "${IMG_NAME}:latest"
 )
 IMG_LABLES=(
     "org.opencontainers.image.created=$(date +"%Y-%m-%dT%H:%M:%SZ")"
     "org.opencontainers.image.version=${IMG_VERSION}"
     "com.dehahost.oci.build.version=${IMG_VERSION}-$(date +"%Y.%m")"
     "com.dehahost.oci.build.branch=$(git rev-parse --abbrev-ref HEAD)"
+    "com.dehahost.oci.build.commit=$(git rev-parse HEAD)"
 )
 
 ###
 
 set -e
-unset arg_nocache arg_push arg_tags arg_lables
+unset arg_nocache arg_push arg_tags arg_lables _override
 
 if [[ $1 == "--help" ]]; then
-    echo "$(basename "$0") [--devel] [--no-cache] [--push]"
+    echo "$(basename "$0") [--prod] [--no-cache] [--push]"
     exit
 fi
 
-if [[ $1 == "--devel" ]]; then
-    echo -e "\e[2m[ i ] Override: Use \"devel\" environment\e[0m"
+if [[ $1 == "--prod" ]]; then
+    echo -e "\e[2m[ i ] Override: Use \"prod\" environment\e[0m"
+    IMG_TAGS+=( "${IMG_NAME}:latest" )
+    IMG_LABELS+=( "com.dehahost.oci.env=prod" )
+    _override=1; shift
+else
     IMG_TAGS=(
         "${IMG_NAME}:devel-$(date +"%Y.%m")"
         "${IMG_NAME}:devel"
     )
     IMG_LABELS+=( "com.dehahost.oci.env=devel" )
-    shift
-else
-    IMG_LABELS+=( "com.dehahost.oci.env=prod" )
 fi
 
 if [[ $1 == "--no-cache" ]]; then
     echo -e "\e[2m[ i ] Override: Build without cache, always pull\e[0m"
-    arg_nocache=("--no-cache" "--pull"); shift
+    arg_nocache=("--no-cache" "--pull")
+    _override=1; shift
 fi
 
 if [[ $1 == "--push" ]]; then
     echo -e "\e[2m[ i ] Override: Push after build\e[0m"
-    arg_push="--push"; shift
+    arg_push="--push"
+    _override=1; shift
 fi
 
 ###
 
-IFS=" " read -ra arg_tags <<< "$(printf -- "--tag %s " "${IMG_TAGS[@]}")"
-IFS=" " read -ra arg_lables <<< "$(printf -- "--label %s " "${IMG_LABLES[@]}")"
+[[ -n $_override ]] && echo
+
+IFS=" " read -ra arg_tags <<<"$(printf -- "--tag %s " "${IMG_TAGS[@]}")"
+IFS=" " read -ra arg_lables <<<"$(printf -- "--label %s " "${IMG_LABLES[@]}")"
 
 docker buildx build \
     $arg_push "${arg_nocache[@]}" --progress=plain \

@@ -2,7 +2,28 @@ services:
   megacmd:
     image: "docker.io/dehahost/megacmd:latest"
     #restart: "unless-stopped"
-    #user: "1001:1001"
+    #user: "9100:9100"
+    #environment:
+    #  # :: Autologin - E-mail
+    #  MEGACMD_EMAIL: "someone@example.com"
+    #
+    #  # :: Autologin - Password
+    #  #    A/ Direct definition
+    #  #MEGACMD_PASSWORD: "..."
+    #  #    B/ Secret name or file path
+    #  #MEGACMD_PASSWORD_FILE: "megacmd-password"
+    #
+    #  # :: Autologin - Time-Based One-Time Password
+    #  MEGACMD_TOTP: "123456"
+    #
+    #  # :: Autosync - Sync folders
+    #  #    Format is <local_mounted_dir>:<remote_mega_dir>[,...]
+    #  #    The automation only adds nonexistent syncs and any error will stop the container.
+    #  MEGACMD_SYNC_DIRS: >-
+    #    /mnt/megasync:/MEGAsync,
+    #    /mnt/music:/Music
+    #secrets:
+    #  - megacmd-password
     volumes:
       # :: Make the workdir persistent
       - megahome:/home/mega
@@ -10,7 +31,11 @@ services:
       # :: Synchronization folder(s)
       #    By default, UID/GID is 9100, so chmod your sync folder accordingly.
       #    OR uncomment the `user` key above and change the value to the folder owner (stat -c %u:%g /path/to/folder)
-      - $HOME/Documents/MEGAsync:/home/mega/sync
+      - $HOME/Documents/MEGAsync:/mnt/megasync
 
 volumes:
   megahome:
+
+#secrets:
+#  megacmd-password:
+#    file: ./.megacmd-pwd
