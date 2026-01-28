@@ -15,6 +15,7 @@ IMG_LABLES=(
     "org.opencontainers.image.version=${IMG_VERSION}"
     "com.dehahost.oci.build.version=${IMG_VERSION}-$(date +"%Y.%m")"
     "com.dehahost.oci.build.branch=$(git rev-parse --abbrev-ref HEAD)"
+    "com.dehahost.oci.build.commit=$(git rev-parse HEAD)"
 )
 
 ###
