@@ -1,0 +1,130 @@
+package: megacmd
+
+essential:
+  - megacmd_copyright
+
+slices:
+  libs:
+    essential:
+      - libc6_libs
+    contents:
+      /opt/megacmd/lib/libavcodec.so.61.19.101:
+      /opt/megacmd/lib/libavformat.so.61.7.100:
+      /opt/megacmd/lib/libavutil.so.59.39.100:
+      /opt/megacmd/lib/libswresample.so.5.3.100:
+      /opt/megacmd/lib/libswscale.so.8.3.100:
+
+      /opt/megacmd/lib/libavcodec.so.61:
+        symlink: /opt/megacmd/lib/libavcodec.so.61.19.101
+      /opt/megacmd/lib/libavcodec.so:
+        symlink: /opt/megacmd/lib/libavcodec.so.61.19.101
+      /opt/megacmd/lib/libavformat.so.61:
+        symlink: /opt/megacmd/lib/libavformat.so.61.7.100
+      /opt/megacmd/lib/libabformat.so:
+        symlink: /opt/megacmd/lib/libavformat.so.61.7.100
+      /opt/megacmd/lib/libavutil.so.59:
+        symlink: /opt/megacmd/lib/libavutil.so.59.39.100
+      /opt/megacmd/lib/libavutil.so:
+        symlink: /opt/megacmd/lib/libavutil.so.59.39.100
+      /opt/megacmd/lib/libswresample.so.5:
+        symlink: /opt/megacmd/lib/libswresample.so.5.3.100
+      /opt/megacmd/lib/libswresample.so:
+        symlink: /opt/megacmd/lib/libswresample.so.5.3.100
+      /opt/megacmd/lib/libswscale.so.8:
+        symlink: /opt/megacmd/lib/libswscale.so.8.3.100
+      /opt/megacmd/lib/libswscale.so:
+        symlink: /opt/megacmd/lib/libswscale.so.8.3.100
+
+  bins:
+    essential:
+      - libc6_libs
+      - libgcc-s1_libs
+      - libstdc++6_libs
+      - megacmd_libs
+    contents:
+      /usr/bin/mega-cmd:
+      /usr/bin/mega-cmd-server:
+      /usr/bin/mega-exec:
+
+  scripts:
+    essential:
+      - bash_bins
+      - megacmd_bins
+    contents:
+      /usr/bin/mega-attr:
+      /usr/bin/mega-backup:
+      /usr/bin/mega-cancel:
+      /usr/bin/mega-cat:
+      /usr/bin/mega-cd:
+      /usr/bin/mega-configure:
+      /usr/bin/mega-confirm:
+      /usr/bin/mega-confirmcancel:
+      /usr/bin/mega-cp:
+      /usr/bin/mega-debug:
+      /usr/bin/mega-deleteversions:
+      /usr/bin/mega-df:
+      /usr/bin/mega-du:
+      /usr/bin/mega-errorcode:
+      /usr/bin/mega-exclude:
+      /usr/bin/mega-export:
+      /usr/bin/mega-find:
+      /usr/bin/mega-ftp:
+      /usr/bin/mega-fuse-add:
+      /usr/bin/mega-fuse-config:
+      /usr/bin/mega-fuse-disable:
+      /usr/bin/mega-fuse-enable:
+      /usr/bin/mega-fuse-remove:
+      /usr/bin/mega-fuse-show:
+      /usr/bin/mega-get:
+      /usr/bin/mega-graphics:
+      /usr/bin/mega-help:
+      /usr/bin/mega-https:
+      /usr/bin/mega-import:
+      /usr/bin/mega-invite:
+      /usr/bin/mega-ipc:
+      /usr/bin/mega-killsession:
+      /usr/bin/mega-lcd:
+      /usr/bin/mega-log:
+      /usr/bin/mega-login:
+      /usr/bin/mega-logout:
+      /usr/bin/mega-lpwd:
+      /usr/bin/mega-ls:
+      /usr/bin/mega-mediainfo:
+      /usr/bin/mega-mkdir:
+      /usr/bin/mega-mount:
+      /usr/bin/mega-mv:
+      /usr/bin/mega-passwd:
+      /usr/bin/mega-permissions:
+      /usr/bin/mega-preview:
+      /usr/bin/mega-proxy:
+      /usr/bin/mega-put:
+      /usr/bin/mega-pwd:
+      /usr/bin/mega-quit:
+      /usr/bin/mega-reload:
+      /usr/bin/mega-rm:
+      /usr/bin/mega-session:
+      /usr/bin/mega-share:
+      /usr/bin/mega-showpcr:
+      /usr/bin/mega-signup:
+      /usr/bin/mega-speedlimit:
+      /usr/bin/mega-sync:
+      /usr/bin/mega-sync-config:
+      /usr/bin/mega-sync-ignore:
+      /usr/bin/mega-sync-issues:
+      /usr/bin/mega-thumbnail:
+      /usr/bin/mega-transfers:
+      /usr/bin/mega-tree:
+      /usr/bin/mega-userattr:
+      /usr/bin/mega-users:
+      /usr/bin/mega-version:
+      /usr/bin/mega-webdav:
+      /usr/bin/mega-whoami:
+
+  config:
+    contents:
+      /etc/bash_completion.d/megacmd_completion.sh:
+      /etc/sysctl.d/99-megacmd-inotify-limit.conf:
+
+  copyright:
+    contents:
+      /usr/share/doc/megacmd/copyright:
