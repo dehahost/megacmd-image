@@ -92,8 +92,7 @@ function do_start_server() {
 
     log -m "server" -p "Starting MEGAcmd server"
 
-    echo -e "--- $(date +"$DATE_FMT") ---" >$SERVER_LOG
-    mega-cmd-server >>$SERVER_LOG &
+    mega-cmd-server >/dev/null 2>&1 &
     local pid=$!
     sleep 1s
 
@@ -268,7 +267,7 @@ function do_autosync() {
 
         # - Check sync status
 
-        if mega-sync "$local_dir" >/dev/null; then
+        if mega-sync "$local_dir" >/dev/null 2>&1; then
             local sync_status
             sync_status=$(mega-sync --output-cols=LOCALPATH,REMOTEPATH,RUN_STATE,STATUS,ERROR --col-separator=¨ "$local_dir" | awk -F ¨ 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1')
 
@@ -296,6 +295,7 @@ log -p "Heating up..."
 
 if [[ ! -r /tmp/machine-id ]]; then
     echo "$RANDOM" | md5sum | head -c 20 >/tmp/machine-id
+    log -i "Generated machine-id"
 fi
 
 trap do_stop SIGTERM SIGINT
@@ -316,7 +316,7 @@ fi
 ###
 
 bin_version="$(mega-version)"
-pkg_version="$(apk info -d megacmd 2>/dev/null | head -n1 | cut -d' ' -f0)"
+pkg_version="$(dpkg -l | grep megacmd | awk '{ print $3 }')"
 
 log -i "Welcome to ${bin_version} (package ${pkg_version})"
 log -i "Enter the interactive shell by typing: docker exec -it ${HOSTNAME} mega-cmd"
