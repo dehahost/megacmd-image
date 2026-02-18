@@ -16,34 +16,32 @@ SERVER_PID="/tmp/megacmdserver.pid"
 
 ### - Logging
 
-function log_prefix() {
-    local mod dt
-
-    if [[ -n $2 ]]; then
-        mod=" | $2"
-    fi
-
-    dt=$(date +"$DATE_FMT")
-
-    case $1 in
-        "e")    echo -n "[${dt}][ !${mod} ]" ;;
-        "p")    echo -n "[${dt}][ >${mod} ]" ;;
-        "i"|*)  echo -n "[${dt}][ i${mod} ]" ;;
-    esac
-}
+declare -A log_level_map=(
+    ["e"]="error"
+    ["w"]="warn"
+    ["i"]="info"
+)
 
 function log() {
-    local mod state
+    local def_level="info"
+    local level="info"
+    local module="main"
 
     if [[ $1 == "-m" && ! $2 =~ $^|^- ]]; then
-        mod=$2; shift 2
+        module=$2; shift 2
     fi
 
-    if [[ $1 =~ ^-([epi])$ ]]; then
-        state=${BASH_REMATCH[1]}; shift
+    if [[ $1 =~ ^-([ewi])$ ]]; then
+        level=${BASH_REMATCH[1]}; shift
+        level=${log_level_map[$level]}
     fi
 
-    echo "$(log_prefix "$state" "$mod") $*"
+    if [[ -z $level ]]; then
+        level=$def_level
+    fi
+
+    local dt ; dt=$(date +"$DATE_FMT")
+    printf "[%s] %-5s: %-10s: %s\n" "$dt" "$level" "$module" "$*"
 }
 
 ### - Utils: Autosync
@@ -90,10 +88,9 @@ function do_start_server() {
         return
     fi
 
-    log -m "server" -p "Starting MEGAcmd server"
+    log -m "server" -i "Starting MEGAcmd server"
 
-    echo -e "--- $(date +"$DATE_FMT") ---" >$SERVER_LOG
-    mega-cmd-server >>$SERVER_LOG &
+    mega-cmd-server >/dev/null 2>&1 &
     local pid=$!
     sleep 1s
 
@@ -138,7 +135,7 @@ function do_stop() {
     #
 
     if [[ -z $arg_silent ]]; then
-        echo; log -p "Caught stop signal, shutting down..."
+        echo; log -i "Caught stop signal, shutting down..."
     fi
 
     if is_server_running; then
@@ -147,7 +144,7 @@ function do_stop() {
     fi
 
     if [[ -n $arg_silent && $MEGACMD_LOGLEVEL =~ ^(FULL)?(DEBUG|VERBOSE)$ ]]; then
-        log -p "Printing server log..."
+        log -i "Printing server log..."
         echo; cat $SERVER_LOG
     fi
 
@@ -208,7 +205,7 @@ function do_autologin() {
         args=("--auth-code=${MEGACMD_TOTP}" "${args[@]}")
     fi
 
-    log -m autologin -p "Attempting to login as ${MEGACMD_EMAIL}..."
+    log -m autologin -i "Attempting to login as ${MEGACMD_EMAIL}..."
 
     timeout -s 9 30s mega-login "${args[@]}" 2>&1
 
@@ -268,7 +265,7 @@ function do_autosync() {
 
         # - Check sync status
 
-        if mega-sync "$local_dir" >/dev/null; then
+        if mega-sync "$local_dir" >/dev/null 2>&1; then
             local sync_status
             sync_status=$(mega-sync --output-cols=LOCALPATH,REMOTEPATH,RUN_STATE,STATUS,ERROR --col-separator=¨ "$local_dir" | awk -F ¨ 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1')
 
@@ -278,7 +275,7 @@ function do_autosync() {
 
         # - Set up sync
 
-        log -m autosync -p "Setting up sync - ${local_dir}:${remote_dir}..."
+        log -m autosync -i "Setting up sync - ${local_dir}:${remote_dir}..."
 
         if ! mega-sync "$local_dir" "$remote_dir"; then
             do_stop -s 1
@@ -290,12 +287,13 @@ function do_autosync() {
 ###
 ### PROGRAM
 
-log -p "Heating up..."
+log -i "Heating up..."
 
 # - Prepare runtime
 
 if [[ ! -r /tmp/machine-id ]]; then
     echo "$RANDOM" | md5sum | head -c 20 >/tmp/machine-id
+    log -i "Generated machine-id"
 fi
 
 trap do_stop SIGTERM SIGINT
@@ -316,7 +314,7 @@ fi
 ###
 
 bin_version="$(mega-version)"
-pkg_version="$(apk info -d megacmd 2>/dev/null | head -n1 | cut -d' ' -f0)"
+pkg_version="$(dpkg -l | grep megacmd | awk '{ print $3 }')"
 
 log -i "Welcome to ${bin_version} (package ${pkg_version})"
 log -i "Enter the interactive shell by typing: docker exec -it ${HOSTNAME} mega-cmd"

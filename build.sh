@@ -1,7 +1,7 @@
 #!/bin/bash
 
 IMG_NAME="docker.io/dehahost/megacmd"
-IMG_VERSION="1.6.3"
+IMG_VERSION="2.4.0"
 IMG_ARCHS=(
     "linux/amd64"
     "linux/arm64/v8"
