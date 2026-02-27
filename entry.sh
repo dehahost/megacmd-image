@@ -98,31 +98,42 @@ function is_server_running() {
 
 function do_start_server() {
     if is_server_running; then
-        log -m "server" -i "MEGAcmd server is running"
+        log -m server -i "MEGAcmd server is running"
         return
     fi
-
-    log -m "server" -i "Starting MEGAcmd server"
 
     mega-cmd-server >/dev/null 2>&1 &
     local pid=$!
     sleep 1s
 
     if [[ ! -r "/proc/${pid}/stat" ]]; then
-        log -m "server" -e "Unable to start MEGAcmd server"
+        log -m server -e "Unable to start MEGAcmd server"
         echo; cat $SERVER_LOG
         exit 1
     fi
 
     echo $pid >$SERVER_PID
-    log -m "server" -i "MEGAcmd server is running"
+    log -m server -i "MEGAcmd server is running"
+}
+
+function do_stop_server() {
+    if ! is_server_running; then
+        return 1
+    fi
+
+    if [[ $1 == "-s" ]]; then
+        local arg_silent=y; shift
+    fi
+
+    #
+
+    kill "$(get_server_pid)"
+    [[ -z $arg_silent ]] && log -m server -i "MEGAcmd server is stopped"
 }
 
 function do_start_precheck() {
-    local
-
     if [[ "${UID}:${GID}" != "${UID_DEF}:${GID_DEF}" ]]; then
-        log -m "precheck" -i "Detected custom UID/GID - ${UID}:${GID}"
+        log -m precheck -i "Detected custom UID/GID - ${UID}:${GID}"
     fi
 
     if [[ ! -d "$MEGA_STATE_DIR" ]]; then
@@ -130,7 +141,7 @@ function do_start_precheck() {
     fi
 
     if ! is_dir_owner_right "$MEGA_STATE_DIR"; then
-        log -m autosync -e "Wrong owner of ${local_dir} - expected ${UID}:${GID}, got $(get_owner "$MEGA_STATE_DIR")"
+        log -m precheck -e "Wrong owner of ${MEGA_STATE_DIR} - expected ${UID}:${GID}, got $(get_owner "$MEGA_STATE_DIR")"
         exit 1
     fi
 }
@@ -139,7 +150,7 @@ function do_stop() {
     local arg_silent arg_signal
 
     if [[ $1 == "-s" ]]; then
-        arg_silent=y; shift
+        arg_silent=$1; shift
     fi
 
     if [[ $1 =~ ^[0-9]+$ ]]; then
@@ -152,10 +163,7 @@ function do_stop() {
         echo; log -i "Caught stop signal, shutting down..."
     fi
 
-    if is_server_running; then
-        kill "$(get_server_pid)"
-        [[ -z $arg_silent ]] && log -i "MEGAcmd server is stopped"
-    fi
+    do_stop_server "$arg_silent"
 
     if [[ -n $arg_silent && $MEGACMD_LOGLEVEL =~ ^(FULL)?(DEBUG|VERBOSE)$ ]]; then
         log -i "Printing server log..."
@@ -239,7 +247,7 @@ function do_autologin() {
 
 function do_autosync() {
     if ! mega_has_session; then
-        log -m autosync -e "User session does not exists! Please login first to use this feature."
+        log -m autosync -w "User session does not exists! Please login first to use this feature."
         return
     fi
 
@@ -302,6 +310,49 @@ function do_autosync() {
     done
 }
 
+function mega_set_default_permission() {
+    local type=$1
+    local mode_old mode_new=$2
+
+    if [[ ! $mode_new =~ ^[0-7]{3}$ ]]; then
+        log -m def-perms -e "${type}: Wrong permission format - expected ^[0-7]{3}$, got ${mode_new}"
+        do_stop -s 1
+    fi
+
+    mode_old=$(mega-permissions "--${type}" | sed 's/.*: //')
+
+    if [[ $mode_new == "$mode_old" ]]; then
+        log -m def-perms -i "${type}: Permissions are correct - ${mode_new}"
+        return
+    fi
+
+    if ! mega-permissions "--${type}" --s "$mode_new" >/dev/null 2>&1; then
+        log -m def-perms -e "${type}: Cannot set permissions. Please check the log."
+        do_stop -s 1
+    fi
+
+    log -m def-perms -i "${type}: Changed default permissions - old: ${mode_old}, new: ${mode_new}"
+    server_restart_needed=1
+}
+
+# Change default permissions
+#
+#            dirs  files
+# MEGAcmd :   700    600
+# Usual   :   775    664
+#
+# https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/commands/permissions.md
+#
+function do_set_default_permissions() {
+    if [[ -n $MEGACMD_DEF_PERMS_DIRS ]]; then
+        mega_set_default_permission "folders" "$MEGACMD_DEF_PERMS_DIRS"
+    fi
+
+    if [[ -n $MEGACMD_DEF_PERMS_FILES ]]; then
+        mega_set_default_permission "files" "$MEGACMD_DEF_PERMS_FILES"
+    fi
+}
+
 
 ###
 ### PROGRAM
@@ -320,10 +371,21 @@ trap do_stop SIGTERM SIGINT
 do_start_precheck
 do_start_server
 
-# - Run automation
+# - Run automations
 
 if [[ -n $MEGACMD_EMAIL ]] && [[ -n $MEGACMD_PASSWORD || -n $MEGACMD_PASSWORD_FILE ]]; then
     do_autologin
+fi
+
+if [[ -n $MEGACMD_DEF_PERMS_DIRS ]] || [[ -n $MEGACMD_DEF_PERMS_FILES ]]; then
+    server_restart_needed=0
+    do_set_default_permissions
+fi
+
+if [[ $server_restart_needed -eq 1 ]]; then
+    log -i "Restarting MEGAcmd server..."
+    do_stop_server
+    do_start_server
 fi
 
 if [[ -n $MEGACMD_SYNC_DIRS ]]; then
