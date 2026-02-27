@@ -377,6 +377,16 @@ if [[ -n $MEGACMD_EMAIL ]] && [[ -n $MEGACMD_PASSWORD || -n $MEGACMD_PASSWORD_FI
     do_autologin
 fi
 
+# TODO: Configure the perms in the .megaCmd/megacmd.cfg file
+#
+# - It happens before executing `do_start_server` fn.
+# - Revering: unsetting env. var removes line from config
+# - Keep it universal for later impl. of configurable log levels
+#
+# > I have no name!@e8ef27704938:~/.megaCmd$ cat megacmd.cfg
+# > permissionsFolders=775
+# > permissionsFiles=664
+
 if [[ -n $MEGACMD_DEF_PERMS_DIRS ]] || [[ -n $MEGACMD_DEF_PERMS_FILES ]]; then
     server_restart_needed=0
     do_set_default_permissions
