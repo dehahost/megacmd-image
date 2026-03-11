@@ -96,6 +96,23 @@ function is_server_running() {
 
 ### - Runtime
 
+function do_start_precheck() {
+    local
+
+    if [[ "${UID}:${GID}" != "${UID_DEF}:${GID_DEF}" ]]; then
+        log -m "precheck" -i "Detected custom UID/GID - ${UID}:${GID}"
+    fi
+
+    if [[ ! -d "$MEGA_STATE_DIR" ]]; then
+        install -d -m 0700 "$MEGA_STATE_DIR" || exit 1
+    fi
+
+    if ! is_dir_owner_right "$MEGA_STATE_DIR"; then
+        log -m autosync -e "Wrong owner of ${local_dir} - expected ${UID}:${GID}, got $(get_owner "$MEGA_STATE_DIR")"
+        exit 1
+    fi
+}
+
 function do_start_server() {
     if is_server_running; then
         log -m "server" -i "MEGAcmd server is running"
@@ -116,23 +133,6 @@ function do_start_server() {
 
     echo $pid >$SERVER_PID
     log -m "server" -i "MEGAcmd server is running"
-}
-
-function do_start_precheck() {
-    local
-
-    if [[ "${UID}:${GID}" != "${UID_DEF}:${GID_DEF}" ]]; then
-        log -m "precheck" -i "Detected custom UID/GID - ${UID}:${GID}"
-    fi
-
-    if [[ ! -d "$MEGA_STATE_DIR" ]]; then
-        install -d -m 0700 "$MEGA_STATE_DIR" || exit 1
-    fi
-
-    if ! is_dir_owner_right "$MEGA_STATE_DIR"; then
-        log -m autosync -e "Wrong owner of ${local_dir} - expected ${UID}:${GID}, got $(get_owner "$MEGA_STATE_DIR")"
-        exit 1
-    fi
 }
 
 function do_stop() {
