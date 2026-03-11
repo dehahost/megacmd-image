@@ -154,6 +154,11 @@ function do_stop() {
 
     if is_server_running; then
         kill "$(get_server_pid)"
+
+        while is_server_running; do
+            sleep 1
+        done
+
         [[ -z $arg_silent ]] && log -i "MEGAcmd server is stopped"
     fi
 
