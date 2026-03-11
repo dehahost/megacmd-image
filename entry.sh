@@ -59,6 +59,20 @@ function mega_has_session() {
     mega-whoami >/dev/null 2>&1
 }
 
+function mega_get_sync_status() {
+    local sep="¨"
+    local args=(
+        "--output-cols=LOCALPATH,REMOTEPATH,RUN_STATE,STATUS,ERROR"
+        "--col-separator=${sep}"
+    )
+
+    {
+        mega-sync "${args[@]}" | head -n 1
+        mega-sync "${args[@]}" | grep "^$1${sep}"
+    } | \
+        awk -F $sep 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1'
+}
+
 ### - Utils: Runtime
 
 function get_server_pid() {
@@ -265,9 +279,14 @@ function do_autosync() {
 
         # - Check sync status
 
-        if mega-sync "$local_dir" >/dev/null 2>&1; then
+        # BUG:
+        #   https://github.com/meganz/MEGAcmd/issues/1113
+        #   mega-sync "$local_dir" pauses the sync while listing out its status
+
+        if mega-sync --output-cols=LOCALPATH | grep "^$local_dir$" >/dev/null 2>&1; then
             local sync_status
-            sync_status=$(mega-sync --output-cols=LOCALPATH,REMOTEPATH,RUN_STATE,STATUS,ERROR --col-separator=¨ "$local_dir" | awk -F ¨ 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1')
+            sync_status=$(mega_get_sync_status "$local_dir")
+            sync_status="${sync_status/%,/}"
 
             log -m autosync -i "Sync of ${local_dir} is already configured - ${sync_status}"
             continue
