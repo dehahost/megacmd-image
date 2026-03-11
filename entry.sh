@@ -315,8 +315,8 @@ log -i "Heating up..."
 
 # - Prepare runtime
 
-if [[ ! -r /tmp/machine-id ]]; then
-    echo "$RANDOM" | md5sum | head -c 20 >/tmp/machine-id
+if [[ ! -r .machine-id ]]; then
+    echo "$RANDOM" | md5sum | head -c 20 >.machine-id
     log -i "Generated machine-id"
 fi
 
