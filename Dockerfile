@@ -103,7 +103,7 @@ RUN    userdel -f -r ubuntu \
     && useradd -m -U -u $UID -s /bin/bash mega \
     && chmod 0777 /home/mega \
     && rm /etc/machine-id \
-    && ln -s /tmp/machine-id /etc/machine-id
+    && ln -s /home/mega/.machine-id /etc/machine-id
 
 VOLUME [ "/home/mega" ]
 
