@@ -23,7 +23,6 @@ declare -A log_level_map=(
 )
 
 function log() {
-    local def_level="info"
     local level="info"
     local module="main"
 
@@ -31,13 +30,9 @@ function log() {
         module=$2; shift 2
     fi
 
-    if [[ $1 =~ ^-([ewi])$ ]]; then
+    if [[ $1 =~ ^-(.)$ ]]; then
         level=${BASH_REMATCH[1]}; shift
-        level=${log_level_map[$level]}
-    fi
-
-    if [[ -z $level ]]; then
-        level=$def_level
+        level=${log_level_map[$level]:-'info'}
     fi
 
     local dt ; dt=$(date +"$DATE_FMT")
@@ -97,42 +92,41 @@ function is_server_running() {
 ### - Runtime
 
 function do_start_precheck() {
-    local
-
     if [[ "${UID}:${GID}" != "${UID_DEF}:${GID_DEF}" ]]; then
-        log -m "precheck" -i "Detected custom UID/GID - ${UID}:${GID}"
+        log -m precheck -i "Detected custom UID/GID - ${UID}:${GID}"
     fi
 
-    if [[ ! -d "$MEGA_STATE_DIR" ]]; then
-        install -d -m 0700 "$MEGA_STATE_DIR" || exit 1
+    if [[ ! -d "$MEGA_STATE_DIR" ]] && ! install -d -m 0700 "$MEGA_STATE_DIR"; then
+        log -m precheck -e "Cannot create or modify ${MEGA_STATE_DIR}"
+        exit 1
     fi
 
     if ! is_dir_owner_right "$MEGA_STATE_DIR"; then
-        log -m autosync -e "Wrong owner of ${local_dir} - expected ${UID}:${GID}, got $(get_owner "$MEGA_STATE_DIR")"
+        log -m precheck -e "Wrong owner of ${local_dir} - expected ${UID}:${GID}, got $(get_owner "$MEGA_STATE_DIR")"
         exit 1
     fi
 }
 
 function do_start_server() {
     if is_server_running; then
-        log -m "server" -i "MEGAcmd server is running"
+        log -m server -i "MEGAcmd server is running"
         return
     fi
 
-    log -m "server" -i "Starting MEGAcmd server"
+    log -m server -i "Starting MEGAcmd server"
 
     mega-cmd-server >/dev/null 2>&1 &
     local pid=$!
     sleep 1s
 
     if [[ ! -r "/proc/${pid}/stat" ]]; then
-        log -m "server" -e "Unable to start MEGAcmd server"
+        log -m server -e "Unable to start MEGAcmd server"
         echo; cat $SERVER_LOG
         exit 1
     fi
 
     echo $pid >$SERVER_PID
-    log -m "server" -i "MEGAcmd server is running"
+    log -m server -i "MEGAcmd server is running"
 }
 
 function do_stop() {
@@ -149,7 +143,7 @@ function do_stop() {
     #
 
     if [[ -z $arg_silent ]]; then
-        echo; log -i "Caught stop signal, shutting down..."
+        echo; log -m server -i "Caught stop signal, shutting down..."
     fi
 
     if is_server_running; then
@@ -159,11 +153,11 @@ function do_stop() {
             sleep 1
         done
 
-        [[ -z $arg_silent ]] && log -i "MEGAcmd server is stopped"
+        [[ -z $arg_silent ]] && log -m server -i  "MEGAcmd server is stopped"
     fi
 
     if [[ -n $arg_silent && $MEGACMD_LOGLEVEL =~ ^(FULL)?(DEBUG|VERBOSE)$ ]]; then
-        log -i "Printing server log..."
+        log "Printing server log..."
         echo; cat $SERVER_LOG
     fi
 
@@ -244,7 +238,7 @@ function do_autologin() {
 
 function do_autosync() {
     if ! mega_has_session; then
-        log -m autosync -e "User session does not exists! Please login first to use this feature."
+        log -m autosync -w "User session does not exist! Please login first to use the autosync feature."
         return
     fi
 
@@ -311,13 +305,13 @@ function do_autosync() {
 ###
 ### PROGRAM
 
-log -i "Heating up..."
+log "Heating up..."
 
 # - Prepare runtime
 
 if [[ ! -r .machine-id ]]; then
     echo "$RANDOM" | md5sum | head -c 20 >.machine-id
-    log -i "Generated machine-id"
+    log "Generated machine-id"
 fi
 
 trap do_stop SIGTERM SIGINT
@@ -340,8 +334,8 @@ fi
 bin_version="$(mega-version)"
 pkg_version="$(dpkg -l | grep megacmd | awk '{ print $3 }')"
 
-log -i "Welcome to ${bin_version} (package ${pkg_version})"
-log -i "Enter the interactive shell by typing: docker exec -it ${HOSTNAME} mega-cmd"
+log "Welcome to ${bin_version} (package ${pkg_version})"
+log "Enter the interactive shell by typing: docker exec -it ${HOSTNAME} mega-cmd"
 
 echo
 tail -n+1 -f $SERVER_LOG &
