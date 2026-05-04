@@ -310,7 +310,7 @@ log "Heating up..."
 # - Prepare runtime
 
 if [[ ! -r .machine-id ]]; then
-    echo "$RANDOM" | md5sum | head -c 20 >.machine-id
+    tr -dc "a-f0-9" </dev/urandom | dd bs=32 count=1 >.machine-id 2>/dev/null
     log "Generated machine-id"
 fi
 
