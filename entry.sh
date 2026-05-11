@@ -1,7 +1,7 @@
 #!/bin/bash
 
 UID_DEF=$(id -u mega)
-GID_DEF=$(id -u mega)
+GID_DEF=$(id -g mega)
 GID=$(id -g)
 
 DATE_FMT="%+4Y-%m-%d %H:%M:%S"
