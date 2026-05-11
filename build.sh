@@ -18,7 +18,7 @@ IMG_TAGS=(
     "${IMG_NAME}:${IMG_VERSION}-$(date +"%Y.%m")"
     "${IMG_NAME}:${IMG_VERSION}"
 )
-IMG_LABLES=(
+IMG_LABELS=(
     "org.opencontainers.image.created=$(date +"%Y-%m-%dT%H:%M:%SZ")"
     "org.opencontainers.image.version=${IMG_VERSION}"
     "com.dehahost.oci.build.version=${IMG_VERSION}-$(date +"%Y.%m")"
@@ -74,7 +74,7 @@ fi
 [[ -n $_override ]] && echo
 
 IFS=" " read -ra arg_tags <<<"$(printf -- "--tag %s " "${IMG_TAGS[@]}")"
-IFS=" " read -ra arg_lables <<<"$(printf -- "--label %s " "${IMG_LABLES[@]}")"
+IFS=" " read -ra arg_lables <<<"$(printf -- "--label %s " "${IMG_LABELS[@]}")"
 
 docker buildx build \
     $arg_push "${arg_nocache[@]}" --progress=plain \
