@@ -1,4 +1,4 @@
-ARG UBUNTU_VERSION=24.04
+ARG UBUNTU_VERSION=26.04
 
 FROM docker.io/library/ubuntu:$UBUNTU_VERSION
 
@@ -92,7 +92,7 @@ apt-get install -y --no-install-recommends \
 rm -rf /var/lib/apt/lists/* \
        /etc/apt/sources.list.d/mega.sources
 
-echo "\n##\n# INSTALLED VERSION: $(dpkg -l | grep megacmd | awk '{ print $3 }')\n##\n"
+printf "\n#\n# INSTALLED VERSION: %s\n#\n" "$(dpkg -l | grep megacmd | awk '{ print $3 }')"
 EOB
 
 # - Copy entrypoint
@@ -100,7 +100,7 @@ COPY entry.sh /usr/local/bin/
 
 # - Finalize
 RUN    userdel -f -r ubuntu \
-    && useradd -m -U -u $UID -s /bin/bash mega \
+    && useradd -l -m -U -u $UID -s /bin/bash mega \
     && chmod 0777 /home/mega \
     && rm /etc/machine-id \
     && ln -s /home/mega/.machine-id /etc/machine-id
