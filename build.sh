@@ -1,9 +1,11 @@
 #!/bin/bash
 set -e
 
+UBUNTU_VERSION=26.04
+
 IMG_NAME="docker.io/dehahost/megacmd"
 IMG_VERSION=$(
-    curl -sSL https://mega.nz/linux/repo/xUbuntu_24.04/Packages | \
+    curl -sSL "https://mega.nz/linux/repo/xUbuntu_${UBUNTU_VERSION}/Packages" | \
         grep -A 2 "^Package: megacmd$" | \
         grep -B 1 -m 1 "^Architecture: amd64$" | \
         head -1 | \
@@ -80,6 +82,7 @@ docker buildx build \
     $arg_push "${arg_nocache[@]}" --progress=plain \
     --provenance=true --sbom=true \
     --platform="$(echo "${IMG_ARCHS[@]}" | tr ' ' ',')" \
+    --build-arg "UBUNTU_VERSION=${UBUNTU_VERSION}" \
     "${arg_lables[@]}" \
     "${arg_tags[@]}" \
 .
