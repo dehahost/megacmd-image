@@ -4,8 +4,6 @@ UID_DEF=$(id -u mega)
 GID_DEF=$(id -g mega)
 GID=$(id -g)
 
-DATE_FMT="%+4Y-%m-%d %H:%M:%S"
-
 MEGA_STATE_DIR=".megaCmd"
 SERVER_LOG="${MEGA_STATE_DIR}/megacmdserver.log"
 SERVER_PID="/tmp/megacmdserver.pid"
@@ -16,27 +14,24 @@ SERVER_PID="/tmp/megacmdserver.pid"
 
 ### - Logging
 
-declare -A log_level_map=(
-    ["e"]="error"
-    ["w"]="warn"
-    ["i"]="info"
-)
-
 function log() {
-    local level="info"
+    local level
     local module="main"
 
     if [[ $1 == "-m" && ! $2 =~ $^|^- ]]; then
         module=$2; shift 2
     fi
 
-    if [[ $1 =~ ^-(.)$ ]]; then
-        level=${BASH_REMATCH[1]}; shift
-        level=${log_level_map[$level]:-'info'}
-    fi
+    case "$1" in
+        "-e")       shift; level="ERROR"
+     ;; "-w")       shift; level="WARN"
+     ;; "-i" | *)   if [[ $1 =~ ^- ]]; then shift; fi
+                    level="INFO"
+     ;;
+    esac
 
-    local dt ; dt=$(date +"$DATE_FMT")
-    printf "[%s] %-5s: %-10s: %s\n" "$dt" "$level" "$module" "$*"
+    local dt ; dt=$(date -Is | sed 's/+00:00/Z/')
+    printf "%s %-5s %-10s %s\n" "$dt" "$level" "$module" "$*"
 }
 
 ### - Utils: Autosync
