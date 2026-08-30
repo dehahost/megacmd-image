@@ -19,6 +19,7 @@ LABEL org.opencontainers.image.url="https://hub.docker.com/r/dehahost/megacmd"
 RUN    apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
+        pigz \
     && rm -rf /var/lib/apt/lists/*
 
 # - Install MEGAcmd
