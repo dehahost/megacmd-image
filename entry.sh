@@ -159,7 +159,13 @@ function do_start_logrotate() {
 
     local keep_files=$(( SERVER_LOG_ROTATE_KEEP_COUNT + 1 ))
     local to_remove remove_ok=() remove_fail=()
-    mapfile -t to_remove < <(find "$MEGA_STATE_DIR" -type f -name "${log_file_base}.*.log*" | tail -n +"$keep_files")
+
+    # Output is sorted from oldest to newest:
+    #  .../megacmdserver.2026-08-30.log.gz
+    #  .../megacmdserver.2026-08-31.log
+    #  .../megacmdserver.2026-09-07.log
+
+    mapfile -t to_remove < <(find "$MEGA_STATE_DIR" -type f -path "${log_file_base}.*.log*" | sort | head -n -"$keep_files")
 
     for logf in "${to_remove[@]}"; do
         find "$logf" -delete \
@@ -174,9 +180,10 @@ function do_start_logrotate() {
 
     local keep_uncomp=$(( SERVER_LOG_ROTATE_UNCOMPRESSED_COUNT + 1 ))
     local to_compress comp_ok=() comp_fail=() comp_skip=()
+
     mapfile -t to_compress < <(
-        find "$MEGA_STATE_DIR" -type f -name "${log_file_base}.*.log" -and -not -name "${log_file_base}.*.log.gz" \
-            | tail -n +"$keep_uncomp"
+        find "$MEGA_STATE_DIR" -type f -path "${log_file_base}.*.log" -and -not -path "${log_file_base}.*.log.*" \
+            | sort | head -n -"$keep_uncomp"
     )
 
     for logf in "${to_compress[@]}"; do
