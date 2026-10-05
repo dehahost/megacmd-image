@@ -8,6 +8,7 @@ Supported architectures: `amd64`, `arm64`
 
 - [Build It](#build-it)
 - [Run It](#run-it)
+- [Configure It](#configure-it)
 - [Automate It](#automate-it)
   - [Autologin](#autologin)
   - [Autosync](#autosync)
@@ -116,14 +117,29 @@ docker compose up -d
 docker compose exec megacmd mega-cmd
 ```
 
+## Configure It
+
+| Env. Variable            | Def. Value | Description                                                           |
+| ------------------------ | ---------- | --------------------------------------------------------------------- |
+| `MEGACMD_LOG_TAIL_LINES` | `50`       | The number of recent lines in the server log that are read at startup |
+
+### Log Rotation
+
+| Env. Variable                          | Def. Value | Description                                        |
+| -------------------------------------- | ---------- | -------------------------------------------------- |
+| `MEGACMD_LOGROTATE_KEEP_COUNT`         | `7`        | The number of server log rotations before deletion |
+| `MEGACMD_LOGROTATE_UNCOMPRESSED_COUNT` | `1`        | The number of uncompressed rotated logs            |
+
+The container rotates the MEGAcmd server log file on startup, archiving it with an ISO 8601 date stamp (i.e. `megacmdserver.2026-09-07.log`).
+
 ## Automate It
 
 ### Autologin
 
-Automation is activated by setting following env. variables:
+Automation is activated by setting the following env. variables:
 
 | Env. Variable           | Description                                                                                         |
-|-------------------------|-----------------------------------------------------------------------------------------------------|
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
 | `MEGACMD_EMAIL`         | Login e-mail                                                                                        |
 | `MEGACMD_PASSWORD`      | Login password                                                                                      |
 | `MEGACMD_PASSWORD_FILE` | File with login password. Accepts name of a secret or path to a file. Overrides `MEGACMD_PASSWORD`. |
@@ -229,7 +245,7 @@ You may use [autologin automation](#autologin) for this.
 
 ## Debug It
 
-Higher verbosity for debugging the MEGAcmd can be set using the `MEGACMD_LOGLEVEL` env. variable.\
+Higher verbosity for debugging the MEGAcmd server can be set using the `MEGACMD_LOGLEVEL` env. variable.\
 Following exact levels are accepted:
 
 - `VERBOSE`

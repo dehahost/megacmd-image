@@ -4,11 +4,42 @@ UID_DEF=$(id -u mega)
 GID_DEF=$(id -g mega)
 GID=$(id -g)
 
-DATE_FMT="%+4Y-%m-%d %H:%M:%S"
+MEGA_STATE_DIR="${HOME}/.megaCmd"
 
-MEGA_STATE_DIR=".megaCmd"
-SERVER_LOG="${MEGA_STATE_DIR}/megacmdserver.log"
+SERVER_LOG_FILE="megacmdserver.log"
+SERVER_LOG_PATH="${MEGA_STATE_DIR}/${SERVER_LOG_FILE}"
+
+SERVER_LOG_ROTATE_KEEP_COUNT_DEF=7
+SERVER_LOG_ROTATE_UNCOMPRESSED_COUNT_DEF=1
+SERVER_LOG_TAIL_LINES_DEF=50
+
+SERVER_LOG_ROTATE_KEEP_COUNT="${MEGACMD_LOGROTATE_KEEP_COUNT:-"$SERVER_LOG_ROTATE_KEEP_COUNT_DEF"}"
+SERVER_LOG_ROTATE_UNCOMPRESSED_COUNT="${MEGACMD_LOGROTATE_UNCOMPRESSED_COUNT:-"$SERVER_LOG_ROTATE_UNCOMPRESSED_COUNT_DEF"}"
+SERVER_LOG_TAIL_LINES="${MEGACMD_LOG_TAIL_LINES:-"$SERVER_LOG_TAIL_LINES_DEF"}"
+
 SERVER_PID="/tmp/megacmdserver.pid"
+
+
+###
+### PREFLIGHT
+
+if [[ ! $SERVER_LOG_ROTATE_KEEP_COUNT =~ ^[0-9]+$ ]]; then
+    logger -w "MEGACMD_LOGROTATE_KEEP_COUNT: Not a positive integer, using default value \"${SERVER_LOG_ROTATE_KEEP_COUNT_DEF}\""
+
+    SERVER_LOG_ROTATE_KEEP_COUNT=$SERVER_LOG_ROTATE_KEEP_COUNT_DEF
+fi
+
+if [[ ! $SERVER_LOG_ROTATE_UNCOMPRESSED_COUNT =~ ^[0-9]+$ ]]; then
+    logger -w "MEGACMD_LOGROTATE_UNCOMPRESSED_COUNT: Not a positive integer, using default value \"${SERVER_LOG_ROTATE_UNCOMPRESSED_COUNT_DEF}\""
+
+    SERVER_LOG_ROTATE_UNCOMPRESSED_COUNT=$SERVER_LOG_ROTATE_UNCOMPRESSED_COUNT_DEF
+fi
+
+if [[ ! $SERVER_LOG_TAIL_LINES =~ ^\+?[0-9]+$ ]]; then
+    logger -w "MEGACMD_LOG_TAIL_LINES: Not a positive integer, using default value \"${SERVER_LOG_TAIL_LINES_DEF}\""
+
+    SERVER_LOG_TAIL_LINES=$SERVER_LOG_TAIL_LINES_DEF
+fi
 
 
 ###
@@ -16,27 +47,24 @@ SERVER_PID="/tmp/megacmdserver.pid"
 
 ### - Logging
 
-declare -A log_level_map=(
-    ["e"]="error"
-    ["w"]="warn"
-    ["i"]="info"
-)
-
 function log() {
-    local level="info"
+    local level
     local module="main"
 
     if [[ $1 == "-m" && ! $2 =~ $^|^- ]]; then
         module=$2; shift 2
     fi
 
-    if [[ $1 =~ ^-(.)$ ]]; then
-        level=${BASH_REMATCH[1]}; shift
-        level=${log_level_map[$level]:-'info'}
-    fi
+    case "$1" in
+        "-e")       shift; level="ERROR"
+     ;; "-w")       shift; level="WARN"
+     ;; "-i" | *)   if [[ $1 =~ ^- ]]; then shift; fi
+                    level="INFO"
+     ;;
+    esac
 
-    local dt ; dt=$(date +"$DATE_FMT")
-    printf "[%s] %-5s: %-10s: %s\n" "$dt" "$level" "$module" "$*"
+    local dt ; dt=$(date -Is | sed 's/+00:00/Z/')
+    printf "%s %-5s %-10s %s\n" "$dt" "$level" "$module" "$*"
 }
 
 ### - Utils: Autosync
@@ -107,6 +135,86 @@ function do_start_precheck() {
     fi
 }
 
+function do_start_logrotate() {
+    local _dt; _dt=$(date -Id)
+    local log_file_base="${SERVER_LOG_PATH/%.log/}"
+    local actual_log_file="${log_file_base}.${_dt}.log"
+    local fail=0
+
+    # - Prepare log file
+
+    if [[ ! -L "$SERVER_LOG_PATH" && -r "$SERVER_LOG_PATH" ]]; then
+        mv "$SERVER_LOG_PATH" "$actual_log_file"
+    fi
+
+    if [[ ! -e "$actual_log_file" ]]; then
+        touch "$actual_log_file"
+    fi
+
+    ln -sf "$actual_log_file" "$SERVER_LOG_PATH"
+
+    log -m logrotate -i "${SERVER_LOG_FILE} points to ${actual_log_file}"
+
+    # - Remove old logs
+
+    local keep_files=$(( SERVER_LOG_ROTATE_KEEP_COUNT + 1 ))
+    local to_remove remove_ok=() remove_fail=()
+
+    # Output is sorted from oldest to newest:
+    #  .../megacmdserver.2026-08-30.log.gz
+    #  .../megacmdserver.2026-08-31.log
+    #  .../megacmdserver.2026-09-07.log
+
+    mapfile -t to_remove < <(find "$MEGA_STATE_DIR" -type f -path "${log_file_base}.*.log*" | sort | head -n -"$keep_files")
+
+    for logf in "${to_remove[@]}"; do
+        find "$logf" -delete \
+            && remove_ok+=("$logf") || remove_fail+=("$logf")
+    done
+
+    local _s
+    [[ ${#to_remove[*]} -ne 1 ]] && _s=s
+    log -m logrotate -i "Deleted ${#remove_ok[*]} out of ${#to_remove[*]} log${_s}, ${#remove_fail[*]} failed"
+
+    # - Compress rotated logs
+
+    local keep_uncomp=$(( SERVER_LOG_ROTATE_UNCOMPRESSED_COUNT + 1 ))
+    local to_compress comp_ok=() comp_fail=() comp_skip=()
+
+    mapfile -t to_compress < <(
+        find "$MEGA_STATE_DIR" -type f -path "${log_file_base}.*.log" -and -not -path "${log_file_base}.*.log.*" \
+            | sort | head -n -"$keep_uncomp"
+    )
+
+    for logf in "${to_compress[@]}"; do
+        if [[ $(stat -c "%s" "$logf") -eq 0 ]]; then
+            comp_skip+=("$logf"); continue
+        fi
+
+        pigz -q -9 "$logf" \
+            && comp_ok+=("$logf") || comp_fail+=("$logf")
+    done
+
+    [[ ${#to_compress[*]} -ne 1 ]] && _s=s || _s=
+    log -m logrotate -i "Compressed ${#comp_ok[*]} out of ${#to_compress[*]} log${_s}, ${#comp_fail[*]} failed, ${#comp_skip[*]} skipped"
+
+    # - Resolution
+
+    if [[ ${#remove_fail[*]} -gt 0 ]]; then
+        log -m logrotate -w "Failed files during deletion: ${remove_fail[*]}"
+        fail=1
+    fi
+
+    if [[ ${#comp_fail[*]} -gt 0 ]]; then
+        log -m logrotate -w "Failed files during compression: ${comp_fail[*]}"
+        fail=1
+    fi
+
+    if [[ $fail -eq 1 ]]; then
+        log -m logrotate -w "Logrotate routine has failed files. Please consider doing manual intervention."
+    fi
+}
+
 function do_start_server() {
     if is_server_running; then
         log -m server -i "MEGAcmd server is running"
@@ -121,7 +229,7 @@ function do_start_server() {
 
     if [[ ! -r "/proc/${pid}/stat" ]]; then
         log -m server -e "Unable to start MEGAcmd server"
-        echo; cat $SERVER_LOG
+        echo; cat $SERVER_LOG_PATH
         exit 1
     fi
 
@@ -158,7 +266,7 @@ function do_stop() {
 
     if [[ -n $arg_silent && $MEGACMD_LOGLEVEL =~ ^(FULL)?(DEBUG|VERBOSE)$ ]]; then
         log "Printing server log..."
-        echo; cat $SERVER_LOG
+        echo; cat $SERVER_LOG_PATH
     fi
 
     exit ${arg_signal:+"$arg_signal"}
@@ -317,6 +425,7 @@ fi
 trap do_stop SIGTERM SIGINT
 
 do_start_precheck
+do_start_logrotate
 do_start_server
 
 # - Run automation
@@ -338,5 +447,5 @@ log "Welcome to ${bin_version} (package ${pkg_version})"
 log "Enter the interactive shell by typing: docker exec -it ${HOSTNAME} mega-cmd"
 
 echo
-tail -n+1 -f $SERVER_LOG &
+tail -n "$SERVER_LOG_TAIL_LINES" -f "$SERVER_LOG_PATH" &
 wait
