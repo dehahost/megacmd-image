@@ -83,17 +83,14 @@ function mega_has_session() {
 }
 
 function mega_get_sync_status() {
-    local sep="¨"
-    local args=(
-        "--output-cols=LOCALPATH,REMOTEPATH,RUN_STATE,STATUS,ERROR"
-        "--col-separator=${sep}"
-    )
+    local sep=$'\t'
+    local cols="LOCALPATH,REMOTEPATH,RUN_STATE,STATUS,ERROR"
 
     {
-        mega-sync "${args[@]}" | head -n 1
-        mega-sync "${args[@]}" | grep "^$1${sep}"
+        echo "${cols//,/$sep}"
+        mega-sync --output-cols="$cols" --col-separator="$sep" | grep "^$1${sep}"
     } | \
-        awk -F $sep 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1'
+        awk -F "$sep" 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1'
 }
 
 function mega_has_sync() {
