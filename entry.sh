@@ -96,6 +96,16 @@ function mega_get_sync_status() {
         awk -F $sep 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1'
 }
 
+function mega_has_sync() {
+    local local_dir="$1"
+
+    [[ -z "$local_dir" ]] && return 1
+
+    mega-sync --output-cols=LOCALPATH 2>/dev/null \
+        | sed 's/[[:space:]]*$//g' \
+        | grep "^${local_dir}$"  >/dev/null 2>&1
+}
+
 ### - Utils: Runtime
 
 function get_server_pid() {
@@ -390,7 +400,7 @@ function do_autosync() {
         #   https://github.com/meganz/MEGAcmd/issues/1113
         #   mega-sync "$local_dir" pauses the sync while listing out its status
 
-        if mega-sync --output-cols=LOCALPATH | grep "^$local_dir$" >/dev/null 2>&1; then
+        if mega_has_sync "$local_dir"; then
             local sync_status
             sync_status=$(mega_get_sync_status "$local_dir")
             sync_status="${sync_status/%,/}"
