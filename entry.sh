@@ -88,7 +88,7 @@ function mega_get_sync_status() {
 
     {
         echo "${cols//,/$sep}"
-        mega-sync --output-cols="$cols" --col-separator="$sep" | grep "^$1${sep}"
+        mega-sync --path-display-size=2147483647 --output-cols="$cols" --col-separator="$sep" | grep "^$1${sep}"
     } | \
         awk -F "$sep" 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1'
 }
@@ -98,9 +98,9 @@ function mega_has_sync() {
 
     [[ -z "$local_dir" ]] && return 1
 
-    mega-sync --output-cols=LOCALPATH 2>/dev/null \
+    mega-sync --path-display-size=2147483647 --output-cols=LOCALPATH  2>/dev/null \
         | sed 's/[[:space:]]*$//g' \
-        | grep "^${local_dir}$"  >/dev/null 2>&1
+        | grep -Fx "$local_dir"  >/dev/null 2>&1
 }
 
 ### - Utils: Runtime
