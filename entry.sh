@@ -83,17 +83,24 @@ function mega_has_session() {
 }
 
 function mega_get_sync_status() {
-    local sep="¨"
-    local args=(
-        "--output-cols=LOCALPATH,REMOTEPATH,RUN_STATE,STATUS,ERROR"
-        "--col-separator=${sep}"
-    )
+    local sep=$'\t'
+    local cols="LOCALPATH,REMOTEPATH,RUN_STATE,STATUS,ERROR"
 
     {
-        mega-sync "${args[@]}" | head -n 1
-        mega-sync "${args[@]}" | grep "^$1${sep}"
+        echo "${cols//,/$sep}"
+        mega-sync --path-display-size=2147483647 --output-cols="$cols" --col-separator="$sep" | grep "^$1${sep}"
     } | \
-        awk -F $sep 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1'
+        awk -F "$sep" 'NR%2{split($0,a);next} {for(i in a)$i=(a[i] "=" $i ",")} 1'
+}
+
+function mega_has_sync() {
+    local local_dir="$1"
+
+    [[ -z "$local_dir" ]] && return 1
+
+    mega-sync --path-display-size=2147483647 --output-cols=LOCALPATH  2>/dev/null \
+        | sed 's/[[:space:]]*$//g' \
+        | grep -Fx "$local_dir"  >/dev/null 2>&1
 }
 
 ### - Utils: Runtime
@@ -390,7 +397,7 @@ function do_autosync() {
         #   https://github.com/meganz/MEGAcmd/issues/1113
         #   mega-sync "$local_dir" pauses the sync while listing out its status
 
-        if mega-sync --output-cols=LOCALPATH | grep "^$local_dir$" >/dev/null 2>&1; then
+        if mega_has_sync "$local_dir"; then
             local sync_status
             sync_status=$(mega_get_sync_status "$local_dir")
             sync_status="${sync_status/%,/}"
